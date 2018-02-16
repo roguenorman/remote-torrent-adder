@@ -22,11 +22,11 @@ if(localStorage.getItem("servers") == undefined) {
 		servers.push({
 			"name": "PRIMARY SERVER",
 			"host": "127.0.0.1",
-			"port": 6883,
+			"port": 8080,
 			"hostsecure": "",
 			"login": "login",
 			"password": "password",
-			"client": "Vuze SwingUI"
+			"client": "uTorrent WebUI"
 		});
 		localStorage.setItem("linksfoundindicator", "true");
 		localStorage.setItem("showpopups", "true");
@@ -50,7 +50,8 @@ RTA.constructContextMenu();
 ////////////////////
 // GRAB FROM NEW TAB
 ////////////////////
-chrome.tabs.onCreated.addListener(function(tab) {
+//chrome.tabs.onCreated.addListener(function(tab) {
+	browser.runtime.onMessage.addListener(function(tab) {
 	var server = JSON.parse(localStorage.getItem("servers"))[0]; // primary server
 	if(localStorage.getItem("catchfromnewtab") != "true") return;
 	res = localStorage.getItem('linkmatches').split('~');
@@ -67,7 +68,8 @@ chrome.tabs.onCreated.addListener(function(tab) {
 /////////////////////////////////////////////////////
 // OVERWRITE THE CLICK-EVENT OF LINKS WE WANT TO GRAB
 /////////////////////////////////////////////////////
-chrome.extension.onRequest.addListener(function(request, sender, sendResponse) {
+//chrome.extension.onRequest.addListener(function(request, sender, sendResponse) {
+browser.runtime.onMessage.addListener(function(request, sender, sendResponse) {
 	var server = JSON.parse(localStorage.getItem("servers"))[0]; // primary server
 	if(request.action == "addTorrent") {
 		if(request.server) {
@@ -82,14 +84,15 @@ chrome.extension.onRequest.addListener(function(request, sender, sendResponse) {
 			localStorage.setItem(x, request.data[x]);
 		sendResponse({});
 	} else if(request.action == "pageActionToggle") {
-		chrome.pageAction.show(sender.tab.id);
+		//chrome.pageAction.show(sender.tab.id);
+		browser.pageAction.show(sender.tab.id);
 		sendResponse({});
 	} else if(request.action == "constructContextMenu") {
 		RTA.constructContextMenu();
 		sendResponse({});
 	} else if(request.action == "registerRefererListeners") {
 		registerReferrerHeaderListeners();
-	} 
+	}
 });
 
 //////////////////////////////////////////////////////////
@@ -99,16 +102,17 @@ var listeners = [];
 function registerReferrerHeaderListeners() {
 	// unregister old listeners
 	while(listeners.length > 0) {
-		chrome.webRequest.onBeforeSendHeaders.removeListener(listeners.pop());
+		//chrome.webRequest.onBeforeSendHeaders.removeListener(listeners.pop());
+		browser.webRequest.onBeforeSendHeaders.removeListener(listeners.pop());
 	}
-	
+
 	// register new listeners
 	var servers = JSON.parse(localStorage.getItem("servers"));
 	for(var i in servers) {
 		var server = servers[i];
 		if(server && server.client && server.client == "qBittorrent WebUI") {
 			var url = "http" + (server.hostsecure ? "s" : "") + "://" + server.host + ":" + server.port + "/";
-			
+
 			var listener = function(details) {
 				var foundReferer = false;
 				var foundOrigin = false;
@@ -117,33 +121,34 @@ function registerReferrerHeaderListeners() {
 						foundReferer = true;
 						details.requestHeaders[i].value = url;
 					}
-					
+
 					if (details.requestHeaders[i].name === 'Origin') {
 						foundOrigin = true;
 						details.requestHeaders[i].value = url;
 					}
-					
+
 					if(foundReferer && foundOrigin) {
 						break;
 					}
 				}
-				
+
 				if(!foundReferer) {
 					details.requestHeaders.push({'name': 'Referer', 'value': url});
 				}
-				
+
 				if(!foundOrigin) {
 					details.requestHeaders.push({'name': 'Origin', 'value': url});
 				}
-				
+
 				console.log(details); // TODO
 				return {requestHeaders: details.requestHeaders};
 			}
-			
-			chrome.webRequest.onBeforeSendHeaders.addListener(listener, {urls: [
+
+			//chrome.webRequest.onBeforeSendHeaders.addListener(listener, {urls: [
+			browser.webRequest.onBeforeSendHeaders.addListener(listener, {urls: [
 				"http" + (server.hostsecure ? "s" : "") + "://" + server.host + ":" + server.port + "/*"
 			]}, ["blocking", "requestHeaders"]);
-			
+
 			listeners.push(listener);
 		}
 	}

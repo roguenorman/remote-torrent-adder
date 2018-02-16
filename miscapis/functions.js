@@ -67,7 +67,7 @@ RTA.getTorrent = function(server, url, label, dir) {
 				} else {
 					name = "file.torrent";
 				}
-				
+
 				RTA.dispatchTorrent(server, xhr.responseText, name, label, dir);
 			} else if(xhr.readyState == 4 && xhr.status < 99) {
 				RTA.displayResponse("Connection failed", "The server sent an irregular HTTP error code: " + xhr.status, true);
@@ -82,28 +82,34 @@ RTA.getTorrent = function(server, url, label, dir) {
 
 RTA.displayResponse = function(title, message, error) {
 	if(localStorage.getItem("showpopups") == "true") {
-		var opts = { 
-					type: "basic", 
-					iconUrl: (error === true) ? "icons/BitTorrent128-red.png" : "icons/BitTorrent128.png", 
+		var opts = {
+					type: "basic",
+					iconUrl: (error === true) ? "icons/BitTorrent128-red.png" : "icons/BitTorrent128.png",
 					title: title,
 					priority: 0,
 					message: message
 					};
+
 		var id = Math.floor(Math.random() * 99999) + "";
-		
-		chrome.notifications.create(id, opts, function(myId) { id = myId });
-		
-		setTimeout(function(){chrome.notifications.clear(id, function() {});}, localStorage.getItem('popupduration'));
+
+		//chrome.notifications.create(id, opts, function(myId) { id = myId });
+		//setTimeout(function(){chrome.notifications.clear(id, function() {});}, localStorage.getItem('popupduration'));
+
+		var n = chrome.notifications.create(id, opts, function(myId) { id = myId });
+		//timeout not working
+		setTimeout(n.close.bind(n), localStorage['popupduration']);
 	}
 }
 
 
 RTA.constructContextMenu = function() {
-	chrome.contextMenus.removeAll();
+	//chrome.contextMenus.removeAll();
+	browser.contextMenus.removeAll();
 
 	if(localStorage.getItem("catchfromcontextmenu") == "true") {
 		// for if there's only one entry
-		var contextMenuId = chrome.contextMenus.create({
+		//var contextMenuId = chrome.contextMenus.create({
+		var contextMenuId = browser.contextMenus.create({
 			"title": "Add to Remote WebUI",
 			"contexts": [ "link" ],
 			"onclick": RTA.genericOnClick
@@ -116,7 +122,8 @@ RTA.constructContextMenu = function() {
 
 		if(numServers > 1) {
 			for(var i = 0; i < numServers; i++) {
-				var thisId = chrome.contextMenus.create({
+				//var thisId = chrome.contextMenus.create({
+				var thisId = browser.contextMenus.create({
 					"title": servers[i].name,
 					"contexts": [ "link" ],
 					"parentId": contextMenuId,
@@ -124,8 +131,10 @@ RTA.constructContextMenu = function() {
 				});
 				menuItemIndexToServerIndex[thisId] = i;
 			}
-			chrome.contextMenus.create({"type" : "separator", "contexts": [ "link" ], "parentId": contextMenuId});
-			var allId = chrome.contextMenus.create({
+			//chrome.contextMenus.create({"type" : "separator", "contexts": [ "link" ], "parentId": contextMenuId});
+			//var allId = chrome.contextMenus.create({
+			browser.contextMenus.create({"type" : "separator", "contexts": [ "link" ], "parentId": contextMenuId});
+			var allId = browser.contextMenus.create({
 				"title": "send to all",
 				"contexts": [ "link" ],
 				"parentId": contextMenuId,
@@ -149,11 +158,13 @@ RTA.genericOnClick = function(info, tab) {
 		var server = JSON.parse(localStorage.getItem("servers"))[serverId];
 
 		if(server.rutorrentdirlabelask == true && server.client == "ruTorrent WebUI") {
-			chrome.tabs.sendRequest(tab.id, {"action": "showLabelDirChooser", "url": info.linkUrl, "settings": localStorage, "server": server});
+			//chrome.tabs.sendRequest(tab.id, {"action": "showLabelDirChooser", "url": info.linkUrl, "settings": localStorage, "server": server});
+			browser.tabs.sendMessage(tab.id, {"action": "showLabelDirChooser", "url": info.linkUrl, "settings": localStorage, "server": server});
 		}
 		else if (server.qbittorrentlabelask == true && server.client == "qBittorrent WebUI") {
-			chrome.tabs.sendRequest(tab.id, {"action": "showLabelDirChooser", "url": info.linkUrl, "settings": localStorage, "server": server});
-		} 
+			//chrome.tabs.sendRequest(tab.id, {"action": "showLabelDirChooser", "url": info.linkUrl, "settings": localStorage, "server": server});
+			browser.tabs.sendMessage(tab.id, {"action": "showLabelDirChooser", "url": info.linkUrl, "settings": localStorage, "server": server});
+		}
 		else {
 			RTA.getTorrent(server, info.linkUrl);
 		}
